@@ -1321,6 +1321,33 @@ void kpatch_create_shstrtab(struct kpatch_elf *kelf)
 	}
 }
 
+void kpatch_rename_patched_functions(struct kpatch_elf *kelf)
+{
+	struct symbol *sym;
+	char *name_patched;
+	const char suffix[] = "__patched";
+	int name_len, suffix_len;
+
+	suffix_len = strlen(suffix);
+
+	list_for_each_entry(sym, &kelf->symbols, list) {
+		if (sym->type == STT_FUNC &&
+		    sym->status == CHANGED &&
+		    sym->sec &&
+		    strncmp(sym->sec->name, ".text.", 6) == 0) {
+			name_len = strlen(sym->name);
+			if (name_len) {
+				name_patched = malloc(name_len+suffix_len);
+				strcpy(name_patched, sym->name);
+				strcat(name_patched, suffix);
+				printf("renaming symbol sym: %s -> %s\n", sym->name, name_patched);
+				sym->name = name_patched;
+			}
+		}
+	}
+}
+
+
 void kpatch_create_strtab(struct kpatch_elf *kelf)
 {
 	struct section *strtab;
@@ -2047,6 +2074,7 @@ int main(int argc, char *argv[])
 		kpatch_rebuild_rela_section_data(sec);
 	}
 
+	kpatch_rename_patched_functions(kelf_out);
 	kpatch_create_shstrtab(kelf_out);
 	kpatch_create_strtab(kelf_out);
 	kpatch_create_symtab(kelf_out);
